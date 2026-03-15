@@ -566,10 +566,137 @@ Si te preguntan por la eficiencia, puedes mencionar que `glClear` es una de las 
 **¿Ves la diferencia entre "configurar el color" y "ejecutar la limpieza"?** **¿Quieres que pasemos a `glfwSwapBuffers`?** Es la función "mágica" que hace que el usuario vea el resultado final sin parpadeos. Es el complemento perfecto a la limpieza.
 
 
+## glfwPollEvents();
+Exacto, ahora que tenemos el bucle de renderizado funcionando a toda pastilla (con el baile de punteros `0x001` y `0x002`), hay un problema: tu programa está tan concentrado dibujando que **se vuelve sordo**.
+
+Si no incluyes **`glfwPollEvents()`**, el sistema operativo (Windows/Linux) enviará mensajes a tu ventana ("¡Eh, que han pulsado la tecla W!", "¡Que el usuario quiere cerrar la ventana!") y tu programa los ignorará. A los 5 segundos, Windows dirá: *"Este programa no responde"* y te saldrá el cursor de carga infinito.
+
+---
+
+### 1. ¿Qué hace realmente esta función?
+
+Piensa en `glfwPollEvents()` como el **cartero** de tu aplicación.
+
+Tu programa tiene una "bandeja de entrada" (una cola de eventos) donde el sistema operativo va dejando sobres. Cada sobre dice algo: "Ratón movido a X,Y", "Tecla Esc pulsada", "Ventana redimensionada".
+
+* **Sin la función:** Los sobres se acumulan hasta que la bandeja explota y el programa se cuelga.
+* **Con la función:** En cada vuelta del bucle `while`, el cartero abre todos los sobres que han llegado en ese milisegundo y ejecuta las funciones de respuesta (**callbacks**) que tú hayas configurado.
+
+---
+
+### 2. ¿Dónde se coloca?
+
+Para un ingeniero de computación, el orden lógico es vital para no perder latencia (input lag):
+
+```cpp
+while (!glfwWindowShouldClose(window)) {
+    // 1. Mirar si ha pasado algo (Input)
+    glfwPollEvents(); 
+
+    // 2. Limpiar y Dibujar (Process & Render)
+    glClear(GL_COLOR_BUFFER_BIT);
+    dibujarCaza();
+
+    // 3. Mostrar el resultado (Output)
+    glfwSwapBuffers(window);
+}
+
+```
+
+### 3. El concepto de "Callback" (Fundamental en C++)
+
+Aquí es donde entra la potencia de lo que sabes:
+Tú no haces un `if (tecla_pulsada)` dentro de `glfwPollEvents`. Lo que haces es **registrar una función**. Le dices a GLFW: *"Si llega un sobre de teclado, llama a esta función mía que se llama `procesarTeclado`"*.
+
+`glfwPollEvents()` es la que se encarga de buscar en la memoria esa función y ejecutarla. Es **programación dirigida por eventos**.
+
+---
+
+### 4. Diferencia clave: `PollEvents` vs `WaitEvents`
+
+En tu perfil de Ícaro hablabas de **eficiencia**, y aquí hay un detalle técnico:
+
+* **`glfwPollEvents()`**: Mira la bandeja de entrada y, si está vacía, sigue adelante inmediatamente. Es la que se usa en **juegos y simuladores** porque queremos que el caza se siga dibujando aunque no pulsemos nada.
+* **`glfwWaitEvents()`**: Se queda dormido hasta que llega un sobre. Ahorra muchísima batería y CPU, pero el programa se "congela" hasta que mueves el ratón. Se usa en aplicaciones de escritorio (tipo Photoshop o un editor de texto).
+
+---
+
+### Tu ventaja en la entrevista de la UHU
+
+Si el profesor o el entrevistador te pregunta por qué el programa se queda "congelado" al intentar mover la ventana, ya tienes la respuesta técnica:
+
+> *"Es debido a que el hilo principal está bloqueado en el bucle de renderizado y no está realizando el **polling de eventos**. Al no llamar a `glfwPollEvents`, la cola de mensajes del sistema operativo se satura y la ventana deja de responder a las interrupciones del usuario."*
+
+**¿Te ha quedado claro cómo el "cartero" evita que el SO mate tu proceso?** **¿Quieres que veamos ahora la función `glfwWindowShouldClose`?** Es la que decide cuándo ese bucle infinito tiene que parar (por ejemplo, cuando el cartero lee un sobre que dice "el usuario ha pulsado la X de la ventana"). Es la pieza final del puzzle del bucle principal.
 
 
+## glfwGetTime();
 
+Esta función es el **reloj de alta precisión** de tu aplicación. Si `glfwPollEvents` era el cartero y los buffers eran los lienzos, `glfwGetTime` es el cronómetro que te permite que tu caza de combate no se mueva a velocidades locas dependiendo de si el ordenador es un pepino o una tostadora.
 
+---
+
+### 1. ¿Qué devuelve exactamente?
+
+Devuelve un valor de tipo **`double`** (doble precisión) que representa el número de segundos transcurridos desde que se inició la librería GLFW (o desde que llamaste a `glfwInit`).
+
+> **Importante:** Al ser un `double`, tiene una precisión de microsegundos. Esto es vital porque en un juego a 60 FPS, cada fotograma dura apenas **0.01667 segundos**. Un `int` no nos serviría de nada.
+
+### 2. El problema del "Hardware Diferente"
+
+Si tú programas el movimiento del caza así:
+`posicion.x += 0.1f; // En cada iteración del bucle`
+
+* En un PC lento (30 FPS), el caza se moverá 3 metros por segundo ($30 \times 0.1$).
+* En tu **RTX 4070** (si fuera a 300 FPS), ¡el caza se movería a 30 metros por segundo!
+
+**Solución:** Usar el tiempo para calcular el **DeltaTime**.
+
+---
+
+### 3. Cómo se usa para animaciones (El truco del "Glow")
+
+Una forma muy chula de usar esta función es para que algo cambie con el tiempo de forma suave (como una luz que parpadea o el color del caza). Puedes usar la función `sin()` (seno) con el tiempo:
+
+```cpp
+double tiempo = glfwGetTime();
+float verde = static_cast<float>(sin(tiempo) / 2.0 + 0.5); // Oscila entre 0 y 1
+
+// Luego pasas este valor al Fragment Shader para que el color cambie solo
+
+```
+
+### 4. La utilidad real: El DeltaTime
+
+Para que el movimiento sea **independiente de los frames**, calculamos cuánto tiempo ha pasado exactamente desde el último fotograma:
+
+```cpp
+double tiempoActual = glfwGetTime();
+double deltaTime = tiempoActual - tiempoAnterior;
+tiempoAnterior = tiempoActual;
+
+// Ahora el movimiento es constante:
+posicion.x += velocidad * deltaTime; 
+
+```
+
+---
+
+### Tu defensa en la entrevista técnica
+
+Si te preguntan cómo aseguras que tu simulación sea realista, puedes soltar esta frase de "Senior":
+
+> *"Utilizo `glfwGetTime` para implementar una lógica de **Frame Independent Movement**. Al calcular el **DeltaTime** entre iteraciones del bucle principal, aseguro que las transformaciones físicas y las animaciones se procesen de forma consistente, independientemente de la tasa de refresco (FPS) del hardware del usuario."*
+
+Esto demuestra que no solo sabes "dibujar", sino que entiendes la **física de la computación**.
+
+---
+
+### ¿Lo tienes?
+
+Es una función sencilla pero es el "corazón" que late en tu programa.
+
+**¿Quieres que veamos ahora `glfwWindowShouldClose`?** Es la función que mira el reloj y los eventos para decidir cuándo el usuario ha dicho "basta" y hay que cerrar el chiringuito de forma limpia (liberando la memoria de los buffers que tanto nos ha costado entender).
 
 
 
