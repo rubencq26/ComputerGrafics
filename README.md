@@ -303,12 +303,105 @@ Hay una regla de oro en esta asignatura que, si la rompes, tu programa se cerrar
 No puedes inicializar GLEW si no hay un contexto de OpenGL activo.
 
 
+### glfwSwapBuffers(window)
+
+Esa línea es el "corazón" del renderizado en aplicaciones que usan OpenGL con la librería GLFW. Su función principal es evitar el parpadeo de la imagen mediante una técnica llamada Double Buffering (Doble Buffer).
+
+Aquí tienes el desglose de lo que ocurre realmente cuando ejecutas esa función:
+
+🖥️ El Concepto de Double Buffering
+Sin esta técnica, el usuario vería cómo el ordenador borra la pantalla y dibuja cada triángulo uno a uno, lo que causaría un parpadeo molesto (flickering). Para evitarlo, se usan dos "lienzos" de memoria:
+
+Front Buffer (Buffer frontal): Es la imagen que se está mostrando actualmente en el monitor.
+
+Back Buffer (Buffer trasero): Es donde OpenGL está dibujando la nueva escena mientras tú ves la anterior.
+
+🔄 ¿Qué hace exactamente la función?
+Cuando llamas a glfwSwapBuffers(window), le dices a la tarjeta gráfica: "He terminado de dibujar en el buffer trasero; ahora intercámbialos".
+
+- El Back Buffer pasa a ser el Front Buffer (se muestra en pantalla).
+
+- El Front Buffer pasa a ser el Back Buffer (donde empezarás a dibujar el siguiente fotograma).
+
+📍 Ubicación en el bucle principal
+Normalmente se coloca al final de tu bucle de renderizado, justo después de todas las llamadas de dibujo y antes de procesar los eventos de entrada.
+
+```C++
+while (!glfwWindowShouldClose(window)) {
+    // 1. Limpiar la pantalla
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // 2. Dibujar tus objetos (Triángulos, modelos, etc.)
+    // glDrawArrays(...);
+
+    // 3. INTERCAMBIAR BUFFERS (Mostrar lo dibujado)
+    glfwSwapBuffers(window);
+
+    // 4. Procesar eventos (teclado, ratón)
+    glfwPollEvents();
+}
+```
+
+#### Un toque de "Erudito": V-Sync
+Si notas que la imagen se "corta" horizontalmente (un efecto llamado Tearing), es porque la tarjeta gráfica intercambia los buffers más rápido de lo que el monitor puede refrescarse.
+
+Puedes controlar esto con:
+
+```C++
+glfwSwapInterval(1); // Activa la sincronización vertical (V-Sync)
+```
+Esto obliga a glfwSwapBuffers a esperar a que el monitor termine su ciclo de refresco antes de hacer el intercambio.
 
 
+### glfwDestroyWindow(window)
 
+Esta función es la encargada de hacer la "limpieza" final. Mientras que `glfwSwapBuffers` se encarga de mostrar el trabajo en cada fotograma, **`glfwDestroyWindow(window)`** se ejecuta normalmente cuando el programa ha terminado y queremos devolverle al sistema operativo todos los recursos que hemos estado usando.
 
+Aquí tienes los detalles de lo que ocurre "bajo el capó":
 
+### 🧹 ¿Qué hace realmente?
 
+1. **Libera la Memoria:** Destruye el objeto de la ventana y libera la memoria RAM y de video asociada a ella.
+2. **Cierra el Contexto de OpenGL:** Al destruir la ventana, también se pierde el contexto de renderizado (el "lienzo" donde OpenGL dibuja).
+3. **Invalida el Handle:** El puntero `window` que has estado usando deja de ser válido. Si intentas usarlo después de esta llamada, el programa se romperá (Crash).
+
+### 📍 ¿Dónde se coloca?
+
+Se pone **fuera** del bucle principal (`while`), justo antes de terminar el programa o de llamar a `glfwTerminate()`.
+
+```cpp
+// --- BUCLE PRINCIPAL ---
+while (!glfwWindowShouldClose(window)) {
+    // Renderizado y eventos...
+}
+
+// --- LIMPIEZA ---
+glfwDestroyWindow(window); // Cerramos la ventana actual
+glfwTerminate();           // Cerramos GLFW por completo
+return 0;
+
+```
+
+---
+
+### ⚠️ Diferencia importante: `glfwDestroyWindow` vs `glfwTerminate`
+
+Es común confundirlas, pero tienen propósitos distintos:
+
+* **`glfwDestroyWindow(window)`**: Cierra **una ventana específica**. Si tu programa tiene tres ventanas abiertas, podrías cerrar solo una y las otras seguirían funcionando.
+* **`glfwTerminate()`**: Cierra **todo**. Libera cualquier recurso que GLFW haya reservado, cierra todas las ventanas restantes y finaliza la librería. Es el "apagado general".
+
+---
+
+### 💡 El consejo del Erudito
+
+Si estás desarrollando un motor de juego o una aplicación profesional, no olvides que `glfwDestroyWindow` también emite eventos. Si tienes "callbacks" registrados (funciones que se ejecutan al cerrar la ventana), este es el momento en que se terminan de gestionar.
+
+**Dato curioso:** En la mayoría de los sistemas modernos, si te olvidas de poner esta línea, el sistema operativo liberará la memoria al cerrar el proceso de todos modos, pero es una **pésima práctica**. En aplicaciones de larga duración o herramientas que abren y cierran muchas ventanas, no usarla causaría una "fuga de memoria" (*memory leak*) que acabaría por ralentizar todo el PC.
+
+¿Estás terminando de pulir el flujo de tu aplicación en C++ o te está dando algún error de memoria al cerrar?
+
+**¿Te gustaría que viéramos cómo gestionar el cierre seguro para que no se quede ningún proceso "zombi" en el Administrador de Tareas?**
 
 
 
