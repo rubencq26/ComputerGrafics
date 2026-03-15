@@ -136,7 +136,7 @@ GLFWmonitor** monitores = glfwGetMonitors(&count);
 
 - NULL: Si falla (por ejemplo, si pides una resolución que tu gráfica no soporta).
 
-### glfwSetWindowUserPointer(GLFWwindow* window, void* pointer);
+## glfwSetWindowUserPointer(GLFWwindow* window, void* pointer);
 
 Imagina que la ventana de GLFW es una caja negra que no sabe nada de tu código de la UHU. Tú tienes una clase llamada CGModel (donde está tu lógica del caza), pero GLFW solo entiende de "ventanas".
 
@@ -167,7 +167,7 @@ glViewport: Es la función de OpenGL que ajusta el "lienzo" real.
 
 Le dice a la RTX 4070: "Oye, el espacio de -1.0 a 1.0 (tus porcentajes) ahora tiene que ocupar estos nuevos píxeles de ancho y alto".
 
-### glfwSetKeyCallback(window, key_callback);
+## glfwSetKeyCallback(window, key_callback);
 
 Establece un interventor. Le dice a Windows: "Cada vez que el usuario pulse, mantenga o suelte una tecla en esta ventana, no hagas nada por defecto; llama a mi función key_callback y pásale todos los detalles".
 
@@ -198,7 +198,7 @@ Para que funcione, tu función key_callback debe tener exactamente estos paráme
 
 4. mods: Si estaba pulsado Shift, Ctrl, Alt o Bloq Mayús al mismo tiempo.
 
-### glfwSetCursorPosCallback(window, cursor_pos_callback);
+## glfwSetCursorPosCallback(window, cursor_pos_callback);
 
 Registra una función que se ejecuta cada vez que el ratón se mueve aunque sea un solo píxel. GLFW se queda "escuchando" al hardware y, en cuanto detecta movimiento, le envía a tu función las coordenadas exactas de dónde está el puntero en ese preciso instante.
 
@@ -233,7 +233,7 @@ Normalmente no usas la posición absoluta (donde está el ratón), sino el despl
 
 - Ese valor lo usas para rotar tu caza de combate.
 
-### glfwSetMouseButtonCallback(window, mouse_button_callback);
+## glfwSetMouseButtonCallback(window, mouse_button_callback);
 
 Configura un interruptor de eventos para los botones del ratón. Al igual que con el teclado, le dice a la ventana: "No me importa dónde esté el ratón, lo que quiero es que me avises en el microsegundo exacto en el que el usuario haga clic o suelte cualquier botón".
 
@@ -276,7 +276,7 @@ En términos técnicos, crea el Contexto de Renderizado. Un contexto es como una
 
 1. window: El puntero de la ventana que quieres activar. Si pasas NULL, desconectas la tarjeta gráfica de cualquier ventana (dejas de tener un contexto activo).
 
-### glewInit();
+## glewInit();
 
 Como vimos, Windows incluye por defecto una versión muy antigua de OpenGL (la 1.1). Si intentaras usar Shaders o técnicas modernas de Realidad Virtual directamente, el compilador te diría que esas funciones no existen.
 
@@ -303,7 +303,7 @@ Hay una regla de oro en esta asignatura que, si la rompes, tu programa se cerrar
 No puedes inicializar GLEW si no hay un contexto de OpenGL activo.
 
 
-### glfwSwapBuffers(window)
+## glfwSwapBuffers(window)
 
 Esa línea es el "corazón" del renderizado en aplicaciones que usan OpenGL con la librería GLFW. Su función principal es evitar el parpadeo de la imagen mediante una técnica llamada Double Buffering (Doble Buffer).
 
@@ -353,7 +353,7 @@ glfwSwapInterval(1); // Activa la sincronización vertical (V-Sync)
 Esto obliga a glfwSwapBuffers a esperar a que el monitor termine su ciclo de refresco antes de hacer el intercambio.
 
 
-### glfwDestroyWindow(window)
+## glfwDestroyWindow(window)
 
 Esta función es la encargada de hacer la "limpieza" final. Mientras que `glfwSwapBuffers` se encarga de mostrar el trabajo en cada fotograma, **`glfwDestroyWindow(window)`** se ejecuta normalmente cuando el programa ha terminado y queremos devolverle al sistema operativo todos los recursos que hemos estado usando.
 
@@ -401,13 +401,169 @@ Si estás desarrollando un motor de juego o una aplicación profesional, no olvi
 
 ¿Estás terminando de pulir el flujo de tu aplicación en C++ o te está dando algún error de memoria al cerrar?
 
-**¿Te gustaría que viéramos cómo gestionar el cierre seguro para que no se quede ningún proceso "zombi" en el Administrador de Tareas?**
+### glClearColor(1.0f, 1.0f, 1.0f, 1.0f)
+
+Esta función es, básicamente, la que elige **el color del bote de pintura** que vas a usar para "blanquear" o limpiar tu lienzo antes de empezar a dibujar un nuevo fotograma.
+
+Como bien has puesto, `glClearColor(1.0f, 1.0f, 1.0f, 1.0f);` pone el color blanco. Pero hay un detalle técnico que separa a los programadores de Java de los de C++/OpenGL, y es entender que esta función **no pinta nada**, solo **configura**.
+
+---
+
+### 1. ¿Cómo funciona realmente? (Estado vs. Acción)
+
+OpenGL es una **Máquina de Estados**. Imagina que tienes un operario en tu tarjeta gráfica:
+
+* **`glClearColor`**: Es cuando le dices al operario: *"Oye, a partir de ahora, cada vez que te pida limpiar la pared, usa este bote de pintura blanca"*. El operario se guarda el bote, pero no hace nada todavía.
+* **`glClear`**: Es cuando le das la orden: *"¡Limpia ya!"*. El operario coge el bote que le diste antes y pinta toda la pantalla.
+
+### 2. Los parámetros (RGBA)
+
+La función recibe cuatro valores tipo `float` que deben ir de **0.0** a **1.0**:
+
+1. **R (Red):** Cantidad de rojo.
+2. **G (Green):** Cantidad de verde.
+3. **B (Blue):** Cantidad de azul.
+4. **A (Alpha):** Opacidad (aunque en el fondo de la ventana no se suele notar, se pone 1.0 para que sea opaco).
+
+> **Dato de examen:** Si pones `(1.0, 0.0, 0.0, 1.0)`, el fondo será rojo puro. Si pones `(0.0, 0.0, 0.0, 1.0)`, será negro.
+
+### 3. ¿Dónde se coloca en el código?
+
+Para que tu programa sea eficiente (recuerda que tu **RTX 4070** quiere ir a toda pastilla), no debes usar estas funciones a lo loco:
+
+* **Fuera del bucle `while**`: Si el color de fondo no va a cambiar nunca, pon el `glClearColor` una sola vez al configurar OpenGL. Así el operario ya sabe qué bote usar para siempre.
+* **Dentro del bucle `while**`: El `glClear(GL_COLOR_BUFFER_BIT)` tiene que ir **obligatoriamente** al principio de cada iteración del bucle. Si no limpias, el caza de combate dejará un rastro de "píxeles viejos" por toda la pantalla.
+
+---
+
+### Un ejemplo pro para tu práctica
+
+Si quieres que tu simulador de vuelo parezca que tiene un cielo real, usa este color azul cielo suave:
+`glClearColor(0.53f, 0.81f, 0.92f, 1.0f);`
+
+### ¿Por qué se llama `GL_COLOR_BUFFER_BIT`?
+
+Porque en la GPU no solo hay colores. También hay un "Buffer de Profundidad" (para saber qué objeto está delante de otro). En la Práctica 2, cuando tu caza tenga volumen, tendrás que limpiar ambos así:
+`glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);`
 
 
+## glViewport(0,0,w,h);
+
+Ya que estamos diseccionando el código de tu práctica para que vayas a esa entrevista con una seguridad de hierro, vamos a profundizar en **`glViewport`**.
+
+Como bien intuyes, esta función es el **mapeo final**: es la que transforma las coordenadas matemáticas de tu caza de combate en píxeles reales de tu monitor.
+
+---
+
+### ¿Cómo funciona la "Magia" del Viewport?
+
+En el mundo de OpenGL, tú no trabajas con píxeles (tipo "pinta en el píxel 400"). Tú trabajas con **Coordenadas Normalizadas (NDC)**, que siempre van de **$-1.0$ a $1.0$** en todos los ejes.
+
+* **Sin `glViewport`:** La GPU sabe dónde está tu triángulo en el espacio matemático, pero no sabe si tu ventana mide $800 \times 600$ o es una pantalla $4K$.
+* **Con `glViewport(x, y, w, h)`:** Le das la regla de tres definitiva. Le dices: *"Oye, el $-1.0$ de mi mundo matemático equivale al píxel $0$, y el $1.0$ equivale al píxel $w$ de mi ventana"*.
+
+---
+
+### Los 4 parámetros explicados para un Ingeniero:
+
+1. **`x` e `y**`: La esquina inferior izquierda. Casi siempre es `0, 0`.
+2. **`w` (Width)**: El ancho en píxeles.
+3. **`h` (Height)**: El alto en píxeles.
+
+> **Dato Clave:** Si tu ventana es de $1200 \times 800$ pero tú haces `glViewport(0, 0, 600, 400);`, ¡solo verás tu dibujo en una esquinita de la ventana! El resto se quedará vacío o con el color del `glClearColor`.
+
+---
+
+### ¿Por qué esto es vital en las prácticas de la UHU?
+
+El problema viene cuando el usuario **estira la ventana** con el ratón. Si no llamas a esta función de nuevo, el dibujo se verá pequeño o deformado. Por eso usamos el **Callback**:
+
+```cpp
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+    // Esto se ejecuta CADA VEZ que el usuario cambia el tamaño de la ventana
+    glViewport(0, 0, width, height);
+}
+
+```
+
+### ¿Qué decir en la entrevista si te preguntan por esto?
+
+Si quieres sonar como un experto en **Computación Gráfica**, di esto:
+
+> *"Utilizo `glViewport` para definir la transformación de la ventana (Window-to-Viewport transformation). Esto asegura que las coordenadas normalizadas del pipeline de OpenGL se mapeen correctamente a las dimensiones reales del framebuffer, manteniendo la escala y evitando distorsiones cuando el usuario redimensiona la aplicación."*
+
+---
+
+### Un detalle curioso para tu Portátil (La 5060)
+
+Si usas una pantalla de **alta densidad (Retina o 4K)**, a veces el ancho de la ventana en "puntos" no es el mismo que en "píxeles reales". Por eso, en lugar de usar variables manuales, solemos llamar a:
+`glfwGetFramebufferSize(window, &width, &height);`
+Y pasarle esos valores a `glViewport`. Así te aseguras de que el caza se vea nítido hasta en la pantalla más moderna.
+
+**¿Te ha quedado claro el concepto del "mapeo" a píxeles?** Si es así, **¿quieres que veamos `glfwWindowHint`?** Es la función que usas **antes** de crear la ventana para decirle a Windows: *"Oye, prepárame una versión moderna de OpenGL (3.3 o superior), no me des la de hace 20 años"*. Es fundamental para que los Shaders funcionen.
 
 
+## glClear(GL_COLOR_BUFFER_BIT);
+Esta es la orden de ejecución. Si `glClearColor` era elegir el color del bote de pintura, **`glClear`** es el momento en el que el pintor lanza el cubo de pintura sobre el lienzo para dejarlo impecable.
 
+Como vienes de Java, piensa en esto como el comando que "borra" lo que dibujaste en el fotograma anterior para que no se mezcle con el nuevo.
 
+---
+
+### 1. ¿Por qué es necesaria?
+
+Las tarjetas gráficas (como tu **RTX 4070**) funcionan por acumulación. Si no llamas a `glClear`, OpenGL simplemente dibujará los nuevos vértices de tu caza **encima** de los del fotograma anterior.
+
+> **El efecto "Solitario":** Sin esta función, si mueves un objeto, verás una estela infinita de ese objeto por toda la pantalla. `glClear` limpia ese rastro 60 veces por segundo.
+
+---
+
+### 2. El parámetro: ¿Qué estamos limpiando?
+
+A diferencia de Java, donde sueles limpiar solo "el color", en OpenGL la GPU maneja varios tipos de memoria (buffers). Por eso no le pasamos un color, sino una **máscara de bits** (un flag):
+
+* **`GL_COLOR_BUFFER_BIT`**: Limpia los colores de los píxeles usando el color que definiste en `glClearColor`.
+* **`GL_DEPTH_BUFFER_BIT`**: (Lo verás en la Práctica 2/3) Limpia el "buffer de profundidad". Es el que sabe qué objeto está delante de otro. Si no lo limpias, el caza de combate se verá transparente o con piezas mal colocadas.
+* **`GL_STENCIL_BUFFER_BIT`**: Se usa para efectos avanzados como espejos o sombras.
+
+---
+
+### 3. La sintaxis del "Operador Or" (`|`)
+
+En C++, para ser ultra rápidos, limpiamos todo a la vez usando el operador `|` (OR a nivel de bits). Esto le dice a la GPU: *"Limpia el color Y la profundidad en un solo ciclo de reloj"*.
+
+```cpp
+// Lo más común en un bucle de renderizado profesional:
+glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+```
+
+---
+
+### 4. ¿Dónde se pone?
+
+Siempre, **siempre**, tiene que ser la **primera línea dentro de tu bucle `while**` de renderizado.
+
+```cpp
+while (!glfwWindowShouldClose(window)) {
+    // 1. LIMPIAR (Preparar el lienzo)
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // 2. DIBUJAR (Pintar el caza)
+    renderCaza();
+
+    // 3. MOSTRAR (Intercambiar buffers)
+    glfwSwapBuffers(window);
+    glfwPollEvents();
+}
+
+```
+
+### Para tu entrevista de prácticas:
+
+Si te preguntan por la eficiencia, puedes mencionar que `glClear` es una de las operaciones más optimizadas por el hardware. La GPU no va píxel por píxel pintando; tiene circuitos especiales para resetear bloques enteros de memoria de video al instante.
+
+**¿Ves la diferencia entre "configurar el color" y "ejecutar la limpieza"?** **¿Quieres que pasemos a `glfwSwapBuffers`?** Es la función "mágica" que hace que el usuario vea el resultado final sin parpadeos. Es el complemento perfecto a la limpieza.
 
 
 
